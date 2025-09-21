@@ -1,7 +1,17 @@
 import Image from "next/image";
 import styles from "./page.module.css";
+import SignupForm from "@/component/SignupForm ";
+import SignupPage from "./signup/page";
+import Navbar from "@/components/Navbar";
 
 export default function Home() {
+  return (
+    <>
+      <Navbar />
+      <SignupForm />
+    </>
+  );
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>

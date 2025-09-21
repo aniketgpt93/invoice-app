@@ -11,8 +11,6 @@ import {
   IconButton,
   InputLabel,
   styled,
-  CircularProgress,
-  LinearProgress,
 } from "@mui/material";
 import Image from "next/image";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
@@ -20,54 +18,44 @@ import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { useDispatch } from "react-redux";
-import { setAuthData } from "@/store/slices/authSlice";
-import ErrorModal from "./modal/ErrorModal";
 
 const schema = yup.object().shape({
-  firstName: yup.string().required("Please enter your first name."),
-  lastName: yup.string().required("Please enter your last name."),
-  email: yup
-    .string()
-    .email("Invalid email")
-    .required("Enter a valid email address."),
+  firstName: yup.string().required("First Name is required"),
+  lastName: yup.string().required("Last Name is required"),
+  email: yup.string().email("Invalid email").required("Email is required"),
   password: yup
     .string()
-    .min(8, "Min 8 characters")
-    .required("Password must be at least 8 characters long."),
-  companyName: yup.string().required("Please enter your company name"),
-  address: yup.string().required("Please enter company address"),
-  city: yup.string().required("Please enter city"),
-  zip: yup.string().required("Zip must be exactly 6 digits"),
-  currency: yup.string().required("Enter a valid currency symbol"),
+    .min(6, "Min 6 characters")
+    .required("Password is required"),
+  companyName: yup.string().required("Company Name is required"),
+  address: yup.string().required("Address is required"),
+  city: yup.string().required("City is required"),
+  zip: yup.string().required("Zip Code is required"),
+  currency: yup.string().required("Currency is required"),
 });
 
-export const CustomTextField = styled(TextField)({
-  "& .MuiOutlinedInput-root": {
-    borderRadius: "8px",
-    height: "40px",
-    "& input": {
-      padding: "8px 12px",
-      "&::placeholder": {
-        fontSize: "0.9 rem",
+ export const CustomTextField = styled(TextField)({
+    "& .MuiOutlinedInput-root": {
+      borderRadius: "8px",
+      height: "40px",
+      "& input": {
+        padding: "8px 12px",
+        "&::placeholder": {
+          fontSize: "0.9 rem",
+        },
       },
     },
-  },
-});
-export const LabelText = styled(Typography)({
-  display: "block",
-  marginBottom: 0,
-  fontWeight: "bold",
-  fontSize: "0.85rem",
-});
-export default function SignupForm() {
+  });
+ export const LabelText = styled(Typography)({
+    display: "block",
+    marginBottom: 0,
+    fontWeight: "bold",
+    fontSize: "0.85rem",
+  });
+export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [file, setFile] = useState(null);
   const [error, setError] = useState("");
-  const [msg, setMsg] = useState("");
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const dispatch = useDispatch();
 
   const {
     handleSubmit,
@@ -93,7 +81,7 @@ export default function SignupForm() {
     if (selected) {
       const sizeMB = selected.size / (1024 * 1024);
       if (sizeMB < 2 || sizeMB > 5) {
-        setError("Show thumbnail preview. Reject invalid size/type.");
+        setError("File size must be between 2MB and 5MB");
         setFile(null);
       } else {
         setError("");
@@ -102,80 +90,21 @@ export default function SignupForm() {
     }
   };
 
-  const toBase64 = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (error) => reject(error);
-    });
-  console.log(process.env.NEXT_PUBLIC_API_URL, "NEXT_PUBLIC_API_URL");
-  const onSubmit = async (data) => {
-    try {
-      setLoading(true);
-
-      let logoBase64 = "";
-      if (file) {
-        logoBase64 = await toBase64(file);
-      }
-
-      const payload = {
-        FirstName: data.firstName,
-        LastName: data.lastName,
-        Email: data.email,
-        Password: data.password,
-        CompanyName: data.companyName,
-        Address: data.address,
-        City: data.city,
-        ZipCode: data.zip,
-        Industry: data.industry,
-        CurrencySymbol: data.currency,
-        Logo: logoBase64,
-      };
-
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/Auth/Signup`,
-        payload,
-        {
-          headers: {
-            "Content-Type": "application/json; charset=utf-8",
-          },
-        }
-      );
-      console.log("Signup success:", response.data);
-      dispatch(setAuthData(response.data));
-    } catch (err) {
-      const message =
-        err.response?.data || "Something went wrong, please try again.";
-      setMsg(message);
-      setOpen(true);
-      console.error("Signup error:", err.response?.data || err.message);
-    } finally {
-      setLoading(false);
-    }
+  const onSubmit = (data) => {
+    console.log("Form submitted:", data);
   };
 
-  const checkPasswordStrength = (password) => {
-    let score = 0;
-    if (password.length >= 8) score++;
-    if (/[A-Z]/.test(password)) score++;
-    if (/[a-z]/.test(password)) score++;
-    if (/[0-9]/.test(password)) score++;
-    if (/[^A-Za-z0-9]/.test(password)) score++;
-    return score;
-  };
 
   return (
     <>
-          <ErrorModal open={open} onClose={() => setOpen(false)} message={msg} />
       <Box
         display="flex"
         flexDirection="column"
         alignItems="center"
-        pt={3}
-        pb={5}
-        sx={{ backgroundColor: "#e0f7fa", }}
+        p={4}
+        sx={{ backgroundColor: "#e0f7fa" }}
       >
+        {/* Header */}
         <Typography variant="h5" fontWeight="bold" mb={1}>
           Create Your Account
         </Typography>
@@ -278,62 +207,41 @@ export default function SignupForm() {
                 <Controller
                   name="password"
                   control={control}
-                  render={({ field }) => {
-                    const strength = checkPasswordStrength(field.value || "");
-                    const progress = (strength / 5) * 100;
-                    return (
-                      <Box sx={{ mb: 1 }}>
-                        <LabelText variant="subtitle1" component={"span"}>
-                          Password*
-                        </LabelText>
-                        <CustomTextField
-                          {...field}
-                          type={showPassword ? "text" : "password"}
-                          fullWidth
-                          margin="none"
-                          error={!!errors.password}
-                          helperText={errors.password?.message}
-                          placeholder="Enter password"
-                          InputProps={{
-                            endAdornment: (
-                              <InputAdornment position="end">
-                                <IconButton
-                                  onClick={() => setShowPassword(!showPassword)}
-                                >
-                                  {showPassword ? (
-                                    <VisibilityOff />
-                                  ) : (
-                                    <Visibility />
-                                  )}
-                                </IconButton>
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
-                        <LinearProgress
-                          variant="determinate"
-                          value={progress}
-                          sx={{
-                            height: 4,
-                            borderRadius: 2,
-                            mt: 1,
-                            backgroundColor: "#e0e0e0",
-                            "& .MuiLinearProgress-bar": {
-                              backgroundColor:
-                                progress < 40
-                                  ? "red"
-                                  : progress < 80
-                                  ? "orange"
-                                  : "green",
-                            },
-                          }}
-                        />
-                      </Box>
-                    );
-                  }}
+                  render={({ field }) => (
+                    <Box sx={{ mb: 1 }}>
+                      <LabelText variant="subtitle1" component={"span"}>
+                        Password*
+                      </LabelText>
+                      <CustomTextField
+                        {...field}
+                        type={showPassword ? "text" : "password"}
+                        fullWidth
+                        margin="none"
+                        error={!!errors.password}
+                        helperText={errors.password?.message}
+                        placeholder="Enter password"
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton
+                                onClick={() => setShowPassword(!showPassword)}
+                              >
+                                {showPassword ? (
+                                  <VisibilityOff />
+                                ) : (
+                                  <Visibility />
+                                )}
+                              </IconButton>
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    </Box>
+                  )}
                 />
               </Grid>
 
+              {/* Right: Company Info */}
               <Grid item size={{ xs: 12, md: 6 }}>
                 <Box
                   sx={{
@@ -368,6 +276,12 @@ export default function SignupForm() {
                     </Box>
                   )}
                 />
+
+                {/* Company Logo Upload */}
+                {/* <Button variant="outlined" component="label" sx={{ my: 2 }}>
+                Upload Company Logo
+                <input hidden accept="image/*" type="file" />
+              </Button> */}
                 <Box sx={{ mb: 1 }}>
                   <LabelText variant="subtitle1" component={"span"}>
                     Upload Company Logo
@@ -393,9 +307,9 @@ export default function SignupForm() {
                       variant="outlined"
                       component="label"
                       sx={{
-                        minWidth: "8px",
+                        minWidth: "8px", 
                         height: "100%",
-                        px: 0,
+                        px: 0, 
                       }}
                     >
                       Upload
@@ -406,6 +320,8 @@ export default function SignupForm() {
                         onChange={handleFileChange}
                       />
                     </Button>
+
+                    {/* File Name / Default Text in Border */}
                     <Box
                       sx={{
                         border: "1px solid #ccc",
@@ -423,11 +339,6 @@ export default function SignupForm() {
                       </Typography>
                     </Box>
                   </Box>
-                  {error && (
-                    <Typography color="error" variant="body2" mt={1}>
-                      {errors}
-                    </Typography>
-                  )}
                 </Box>
 
                 <Controller
@@ -547,21 +458,10 @@ export default function SignupForm() {
               </Grid>
             </Grid>
 
+            {/* Sign Up Button */}
             <Box textAlign="right" mt={2}>
-              <Button
-                type="submit"
-                variant="contained"
-                size="large"
-                disabled={loading}
-                sx={{
-                  backgroundColor: "black",
-                  "&:hover": {
-                    backgroundColor: "#333",
-                  },
-                }}
-                startIcon={loading ? <CircularProgress size={20} /> : null}
-              >
-                {loading ? "Signing Up..." : "Sign Up"}
+              <Button type="submit" variant="contained" size="large">
+                Sign Up
               </Button>
             </Box>
           </form>
@@ -582,7 +482,7 @@ export default function SignupForm() {
           // height: 20,
           display: "flex",
           // alignItems: "center",
-            // mt:2,
+          //   m:2,
           paddingTop: 2,
           paddingBottom: 1,
           justifyContent: "center",

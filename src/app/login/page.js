@@ -13,31 +13,33 @@ import {
   styled,
   FormControlLabel,
   Checkbox,
+  CircularProgress,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
+import { useDispatch } from "react-redux";
+import { setAuthData } from "@/store/slices/authSlice";
+import ErrorModal from "@/component/modal/ErrorModal";
 
 // ✅ Validation schema
 const schema = yup.object().shape({
-  firstName: yup.string().required("First Name is required"),
-  lastName: yup.string().required("Last Name is required"),
-  email: yup.string().email("Invalid email").required("Email is required"),
+  email: yup.string().email("Invalid email").required("Enter a valid email"),
   password: yup
     .string()
-    .min(6, "Min 6 characters")
-    .required("Password is required"),
-  companyName: yup.string().required("Company Name is required"),
-  address: yup.string().required("Address is required"),
-  city: yup.string().required("City is required"),
-  zip: yup.string().required("Zip Code is required"),
-  currency: yup.string().required("Currency is required"),
+    .min(8, "Min 8 characters")
+    .required("Enter your password."),
 });
 
 export default function SigninPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState("");
+
+  const dispatch = useDispatch();
 
   const {
     handleSubmit,
@@ -52,8 +54,35 @@ export default function SigninPage() {
     },
   });
 
-  const onSubmit = (data) => {
-    console.log("Form submitted:", data);
+  const onSubmit = async (data) => {
+    try {
+      setLoading(true);
+      const response = await axios.post(
+        "{{baseUrl}}/Auth/Login",
+        {
+          email: data.email,
+          password: data.password,
+          rememberMe: data.rememberMe,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+          },
+        }
+      );
+
+      dispatch(setAuthData(response.data));
+
+      console.log("Login success:", response.data);
+      setLoading(false);
+    } catch (error) {
+      setLoading(false);
+      const message =
+        err.response?.data || "Something went wrong, please try again.";
+      setError(message);
+      setOpen(true);
+      console.error("Login failed:", error.response?.data || error.message);
+    }
   };
   const CustomTextField = styled(TextField)({
     "& .MuiOutlinedInput-root": {
@@ -76,14 +105,14 @@ export default function SigninPage() {
 
   return (
     <>
+      <ErrorModal open={open} onClose={() => setOpen(false)} message={error} />
       <Box
         display="flex"
         flexDirection="column"
         alignItems="center"
         p={4}
-        sx={{ backgroundColor: "#e0f7fa",  }}
+        sx={{ backgroundColor: "#e0f7fa" }}
       >
-        {/* Header */}
         <Typography variant="h5" fontWeight="bold" mb={1}>
           Wellcome back
         </Typography>
@@ -91,7 +120,6 @@ export default function SigninPage() {
           Log in to your account
         </Typography>
 
-        {/* Card */}
         <Card sx={{ maxWidth: 400, width: "100%", p: 4, borderRadius: 4 }}>
           <form onSubmit={handleSubmit(onSubmit)}>
             <Controller
@@ -159,9 +187,21 @@ export default function SigninPage() {
               )}
             />
 
-            {/* Sign Up Button */}
             <Box textAlign="right" mt={1}>
-              <Button type="submit" variant="contained" size="large">
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                disabled={loading}
+                sx={{
+                  backgroundColor: "black",
+                  "&:hover": {
+                    backgroundColor: "#333",
+                  },
+                }}
+                startIcon={loading ? <CircularProgress size={20} /> : null}
+              >
+                {loading ? "Loading..." : "Login"}
                 Login
               </Button>
             </Box>
@@ -169,51 +209,60 @@ export default function SigninPage() {
 
           <Box textAlign="center" mt={2}>
             <Typography variant="body2" color="text.secondary">
-              <a href="/signup">Create account </a>
+              <a href="/">Create account </a>
             </Typography>
           </Box>
         </Card>
       </Box>
-<Box
-  sx={{
-    width: "100%",
-    backgroundColor: "#ffffff",
-    color: "#000000",
-     py: { xs: 1, sm: 2 },
-    px: 1,
-    display: "flex",
-    flexDirection: "column", // always column (for 2 lines on desktop)
-    justifyContent: "center",
-    alignItems: "center",
-    textAlign: "center",
-    gap: 1,
-  }}
->
-  <Typography variant="body2" color="text.secondary">
-    © 2025 InvoiceApp. All rights reserved
-  </Typography>
+      <Box
+        sx={{
+          width: "100%",
+          backgroundColor: "#ffffff",
+          color: "#000000",
+          py: { xs: 1, sm: 2 },
+          px: 1,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          textAlign: "center",
+          gap: 1,
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          © 2025 InvoiceApp. All rights reserved
+        </Typography>
 
-  {/* Links */}
-  <Box
-    sx={{
-      display: "flex",
-      flexDirection: { xs: "column", sm: "row" }, // mobile = column, desktop = row
-      gap: { xs: 0.5, sm: 3 },
-    }}
-  >
-    <Typography variant="body2" color="text.secondary" sx={{ cursor: "pointer" }}>
-      Privacy Policy
-    </Typography>
-    <Typography variant="body2" color="text.secondary" sx={{ cursor: "pointer" }}>
-      Terms of Service
-    </Typography>
-    <Typography variant="body2" color="text.secondary" sx={{ cursor: "pointer" }}>
-      Support
-    </Typography>
-  </Box>
-</Box>
-
-
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" }, // mobile = column, desktop = row
+            gap: { xs: 0.5, sm: 3 },
+          }}
+        >
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ cursor: "pointer" }}
+          >
+            Privacy Policy
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ cursor: "pointer" }}
+          >
+            Terms of Service
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ cursor: "pointer" }}
+          >
+            Support
+          </Typography>
+        </Box>
+      </Box>
     </>
   );
 }
