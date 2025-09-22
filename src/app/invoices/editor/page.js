@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import Header from "@/components/invoiceEditor/Header";
 import EditorFooter from "@/components/invoiceEditor/EditorFooter";
 import EditorTable from "@/components/invoiceEditor/EditorTable";
-import InvoiceForm from "@/components/invoiceEditor/invoiceForm";
+import InvoiceForm from "@/components/invoiceEditor/InvoiceForm";
 
 export default function InvoiceEditorPage() {
   const [loading, setLoading] = useState(false);
@@ -38,7 +38,7 @@ export default function InvoiceEditorPage() {
   const [taxState, setTaxState] = useState(0);
 
   const calcTotals = (taxPct) => {
-    const calculatedTaxAmt =
+    const calculatedTaxAmt = 
       totalAmountState > 0
         ? parseFloat(((totalAmountState * taxPct) / 100).toFixed(2))
         : 0;
