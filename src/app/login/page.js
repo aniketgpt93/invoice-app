@@ -22,9 +22,10 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useDispatch } from "react-redux";
 import { setAuthData } from "@/store/slices/authSlice";
-import ErrorModal from "@/component/modal/ErrorModal";
+import ErrorModal from "@/components/modal/ErrorModal";
+import PublicRoute from "@/components/PublicRoute";
+import Navbar from "@/components/Navbar";
 
-// ✅ Validation schema
 const schema = yup.object().shape({
   email: yup.string().email("Invalid email").required("Enter a valid email"),
   password: yup
@@ -104,13 +105,15 @@ export default function SigninPage() {
   });
 
   return (
-    <>
+    <PublicRoute>
       <ErrorModal open={open} onClose={() => setOpen(false)} message={error} />
+        <Navbar />
       <Box
         display="flex"
         flexDirection="column"
         alignItems="center"
-        p={4}
+        pt={4}
+        pb={2}
         sx={{ backgroundColor: "#e0f7fa" }}
       >
         <Typography variant="h5" fontWeight="bold" mb={1}>
@@ -202,7 +205,6 @@ export default function SigninPage() {
                 startIcon={loading ? <CircularProgress size={20} /> : null}
               >
                 {loading ? "Loading..." : "Login"}
-                Login
               </Button>
             </Box>
           </form>
@@ -220,7 +222,7 @@ export default function SigninPage() {
           backgroundColor: "#ffffff",
           color: "#000000",
           py: { xs: 1, sm: 2 },
-          px: 1,
+          // px: 1,
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
@@ -263,6 +265,6 @@ export default function SigninPage() {
           </Typography>
         </Box>
       </Box>
-    </>
+    </PublicRoute>
   );
 }

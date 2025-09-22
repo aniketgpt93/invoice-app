@@ -18,6 +18,7 @@ export default function CustomButton(
   // name,
   variantName = "outlined", //"outlined" | "contained" | "text",
   typeButton = "button", //"button" | "submit" | "reset"
+  onClick, 
   
 }) {
   return (
@@ -26,6 +27,7 @@ export default function CustomButton(
       variant={variantName}
       sx={style}
       fullWidth={{ xs: true, sm: false }}
+      onClick={onClick}
     >
       {children} 
     </Button>

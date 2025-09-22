@@ -16,17 +16,12 @@ const theme = createTheme({
 });
 
 export default function RootLayout({ children }) {
-    const pathname = usePathname();
-  
-    // Check if user is on signup or login page
-    const isSignup = pathname === "/signup";
-    const isLogin = pathname === "/login";
+
   return (
     <html lang="en">
       <body>
         <ThemeProvider theme={theme}>
           <Provider store={store}>
-          {(isLogin ||isSignup) && <Navbar />}
           {children}
           </Provider>
         </ThemeProvider>
