@@ -16,6 +16,7 @@
     "@mui/x-data-grid-pro": "^8.11.3",
     "@reduxjs/toolkit": "^2.9.0",
     "axios": "^1.12.2",
+    "dayjs": "^1.11.18",
     "next": "15.5.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",

@@ -25,8 +25,12 @@ import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import NewItemModal from "@/components/modal/NewItem";
 import axios from "axios";
 import ErrorModal from "@/components/modal/ErrorModal";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import LoaderComponent from "@/components/loader/LoaderComponent";
+import { deleteItem, fetchItems, getItemThumbnail } from "@/utils/axiosFile";
 
 const ItemsList = () => {
+  const [loading, setLoading] = useState(false);
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -41,22 +45,68 @@ const ItemsList = () => {
     setErrorOpen(false);
     setErrorMessage("");
   };
+
+
+const attachThumbnails = async (items) => {
+  const updatedItems = await Promise.all(
+    items.map(async (item) => {
+      const pictureUrl = await getItemThumbnail(item.itemID);
+      return {
+        ...item,
+        pictureUrl,
+      };
+    })
+  );
+  return updatedItems;
+};
+
+const handleRowUpdate = (payload) => {
+  setItems((prev) => {
+    const index = prev.findIndex((item) => item.itemID === payload.itemID);
+    if (index !== -1) {
+
+      const updated = [...prev];
+      updated[index] = { ...updated[index], ...payload };
+      return updated;
+    } else {
+
+      return [...prev, payload];
+    }
+  });
+};
+
+  const fetchItemsFunc = async () => {
+    try {
+      setLoading(true)
+      const token = sessionStorage.getItem("token");
+      if (!token) throw new Error("No auth token found in sessionStorage");
+
+      const res = await fetchItems();
+
+        const updatedItems = await attachThumbnails(res);
+
+    setItems(updatedItems);
+      console.log(updatedItems, "updatedItems");
+      setLoading(false); 
+    } catch (error) {
+      const msg =
+        error.response?.data?.message ||
+        error.message ||
+        "Something went wrong!";
+      setErrorMessage(msg);
+      setErrorOpen(true);
+      console.error("Error fetching items:", error);
+      setLoading(false); 
+    }finally {
+      setLoading(false); 
+    }
+
+  };
+
+
   useEffect(() => {
-    const ControllerName = "";
-    axios
-      .get(`${process.env.NEXT_PUBLIC_API_URL}/${ControllerName}/GetList`)
-      .then((res) => {
-        setItems(res.data);
-      })
-      .catch((error) => {
-        const msg =
-          error.response?.data?.message ||
-          error.message ||
-          "Something went wrong!";
-        setErrorMessage(msg);
-        setErrorOpen(true);
-        console.error("Error fetching items:", error);
-      });
+
+    fetchItemsFunc();
   }, []);
 
   const filtered = items.filter(
@@ -89,14 +139,10 @@ const ItemsList = () => {
   const handleDelete = async (item) => {
     if (window.confirm("Are you sure you want to delete this item?")) {
       try {
-        await axios.delete(
-          `${process.env.NEXT_PUBLIC_API_URL}/${ControllerName}/${item.id}`,
-          {
-            data: { id: item.id },
-          }
-        );
+        const token = sessionStorage.getItem("token");
+        await deleteItem(item)
 
-        setItems((prev) => prev.filter((i) => i.id !== item.id));
+        setItems((prev) => prev.filter((i) => i.itemID !== item.itemID));
       } catch (error) {
         console.error("Error deleting item:", error);
         alert("Failed to delete item. Please try again.");
@@ -105,11 +151,13 @@ const ItemsList = () => {
   };
 
   const handleExport = () => {
-    window.open("/item/export", "_blank");
+    // window.open("/item/export", "_blank");
+    alert("handle Export")
   };
 
   return (
     <ProtectedRoute>
+      {loading && <LoaderComponent/>}
       <Box p={3}>
         <ErrorModal
           open={errorOpen}
@@ -175,8 +223,9 @@ const ItemsList = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {paginated.map((item) => (
-                <TableRow key={item.id}>
+              {paginated.map((item,ind) => (
+                <TableRow key={item.primaryKeyID||ind}>
+                  {/* Image */}
                   <TableCell>
                     <Box
                       component="img"
@@ -190,9 +239,13 @@ const ItemsList = () => {
                       }}
                     />
                   </TableCell>
+
+                  {/* Item Name */}
                   <TableCell>
                     <Typography fontWeight="bold">{item.itemName}</Typography>
                   </TableCell>
+
+                  {/* Description */}
                   <TableCell>
                     <Tooltip title={item.description || ""}>
                       <Typography noWrap>
@@ -200,15 +253,21 @@ const ItemsList = () => {
                       </Typography>
                     </Tooltip>
                   </TableCell>
+
+                  {/* Sales Rate */}
                   <TableCell align="right">
-                    {item.saleRate.toLocaleString(undefined, {
+                    {item.salesRate?.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
                   </TableCell>
+
+                  {/* Discount */}
                   <TableCell align="right">
-                    {item.discountPct.toFixed(2)}%
+                    {item.discountPct?.toFixed(2)}%
                   </TableCell>
+
+                  {/* Actions */}
                   <TableCell>
                     <IconButton
                       color="primary"
@@ -225,6 +284,8 @@ const ItemsList = () => {
                   </TableCell>
                 </TableRow>
               ))}
+
+              {/* Empty State */}
               {paginated.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} align="center">
@@ -252,6 +313,7 @@ const ItemsList = () => {
           handleClose={handleClose}
           title={modalMode === "add" ? "New Item" : "Edit Item"}
           data={modalMode === "edit" ? selectedItem : null}
+          rowFunc={handleRowUpdate}
         />
       </Box>
     </ProtectedRoute>

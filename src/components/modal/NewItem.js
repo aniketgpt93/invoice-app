@@ -20,14 +20,20 @@ import axios from "axios";
 
 const schema = yup.object().shape({
   itemName: yup.string().required("Item name is required"),
-  description: yup.string().required("Description is required"),
-  saleRate: yup
+  description: yup.string().required("Description is required").max(500, "Description cannot exceed 500 characters"),
+  salesRate: yup
     .number()
+    .transform((value, originalValue) =>
+      String(originalValue).trim() === "" ? undefined : Number(originalValue)
+    )
     .typeError("Sale rate must be a number")
     .min(0, "Sale rate must be ≥ 0")
     .required("Sale rate is required"),
-  discount: yup
+  discountPct: yup
     .number()
+    .transform((value, originalValue) =>
+      String(originalValue).trim() === "" ? undefined : Number(originalValue)
+    )
     .typeError("Discount must be a number")
     .min(0, "Discount must be ≥ 0")
     .max(100, "Discount must be ≤ 100")
@@ -35,11 +41,28 @@ const schema = yup.object().shape({
   image: yup.mixed().nullable(),
 });
 
+const CustomTextField = styled(TextField)({
+  "& .MuiOutlinedInput-root": {
+    borderRadius: "8px",
+    height: "40px",
+    "& input": {
+      padding: "8px 12px",
+    },
+  },
+});
+
+const LabelText = styled(Typography)({
+  display: "block",
+  marginBottom: 0,
+  fontWeight: "bold",
+  fontSize: "0.85rem",
+});
 export default function NewItemModal({
   open,
   handleClose,
   title = "New Item",
   data,
+  rowFunc,
 }) {
   const [imageName, setImageName] = useState(null);
   const [previewUrl, setPreviewUrl] = useState();
@@ -50,90 +73,117 @@ export default function NewItemModal({
     setErrorOpen(false);
     setErrorMessage("");
   };
-
+  console.log(data, "data");
   const {
     handleSubmit,
     control,
     setValue,
     formState: { errors },
     reset,
-    clearErrors,
-    setError,
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
       itemName: "",
       description: "",
-      saleRate: "",
-      discount: "",
+      salesRate: "",
+      discountPct: "",
       image: null,
     },
   });
 
-  useEffect(() => {
-    if (open) {
-      if (data) {
-        reset({
-          itemName: data.itemName || "",
-          description: data.description || "",
-          saleRate: data.saleRate || "",
-          discount: data.discount || "",
-          image: null,
+  const fetchImg = async () => {
+    if (data.itemID) {
+      const token = sessionStorage.getItem("token");
+      await axios
+        .get(
+          `${process.env.NEXT_PUBLIC_API_URL}/Item/PictureThumbnail/${data.itemID}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+        .then((res) => {
+          setPreviewUrl(res.data || null);
+        })
+        .catch((err) => {
+          setPreviewUrl(null);
         });
-        setPreviewUrl(data.pictureUrl || null);
-        setImageName(null);
-      } else {
-        reset({
-          itemName: "",
-          description: "",
-          saleRate: "",
-          discount: "",
-          image: null,
-        });
-        setPreviewUrl(null);
-        setImageName(null);
-      }
     }
-  }, [open, data, reset]);
+  };
+
+  const updateItemPicture = async (fileInput) => {
+    try {
+      const token = sessionStorage.getItem("token");
+      if (data && fileInput) {
+        const formData = new FormData();
+        formData.append("ItemID", data.itemID);
+        formData.append("File", fileInput.files[0]);
+
+        const response = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/Item/UpdateItemPicture`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        await fetchImg();
+        alert("Upload image sucessfully");
+        return response.data;
+      }
+    } catch (error) {
+      const msg =
+        error.response.data ||
+        error.message ||
+        error.request ||
+        "Some thing went worang";
+      alert(msg);
+    }
+  };
 
   const onSubmit = async (formData) => {
     try {
       let url = "";
-      let method = "";
       let payload = {};
-      const ControllerName = "";
+      const token = sessionStorage.getItem("token");
 
       if (data) {
-        url = `${process.env.NEXT_PUBLIC_API_URL}/${ControllerName}`;
-        method = "put";
+        url = `${process.env.NEXT_PUBLIC_API_URL}/Item`;
         payload = {
-          updatedOn: new Date().toISOString(),
+          updatedOn: null,
           itemID: data.itemID,
           itemName: formData.itemName,
           description: formData.description,
-          salesRate: parseFloat(formData.saleRate),
-          discountPct: parseFloat(formData.discount),
+          salesRate: parseFloat(formData.salesRate),
+          discountPct: parseFloat(formData.discountPct),
         };
+
+        const res = await axios.put(url, payload, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
       } else {
-        url = `${process.env.NEXT_PUBLIC_API_URL}/${ControllerName}`;
-        method = "post";
+        url = `${process.env.NEXT_PUBLIC_API_URL}/Item`;
         payload = {
-          updatedOn: null,
-          itemID: 0,
           itemName: formData.itemName,
           description: formData.description,
-          salesRate: parseFloat(formData.saleRate),
-          discountPct: parseFloat(formData.discount),
+          salesRate: parseFloat(formData.salesRate),
+          discountPct: parseFloat(formData.discountPct),
         };
+        const res = await axios.post(url, payload, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        console.log("✅ API Success:", res.data);
+        payload = {...payload, primaryKeyID:res?.data?.primaryKeyID}
       }
-
-      const res = await axios[method](url, payload, {
-        headers: { "Content-Type": "application/json" },
-      });
-
-      console.log("✅ API Success:", res.data);
+    rowFunc(payload);
 
       handleClose();
+      alert("Item Saved sucessfully")
     } catch (error) {
       console.error("API Error:", error);
       const msg =
@@ -144,23 +194,31 @@ export default function NewItemModal({
       setErrorOpen(true);
     }
   };
+  useEffect(() => {
+    if (open) {
+      if (data) {
+        reset({
+          itemName: data.itemName || "",
+          description: data.description || "",
+          salesRate: data.salesRate || "",
+          discountPct: data.discountPct || "",
+          image: null,
+        });
 
-  const CustomTextField = styled(TextField)({
-    "& .MuiOutlinedInput-root": {
-      borderRadius: "8px",
-      height: "40px",
-      "& input": {
-        padding: "8px 12px",
-      },
-    },
-  });
-
-  const LabelText = styled(Typography)({
-    display: "block",
-    marginBottom: 0,
-    fontWeight: "bold",
-    fontSize: "0.85rem",
-  });
+        setImageName(null);
+      } else {
+        reset({
+          itemName: "",
+          description: "",
+          salesRate: "",
+          discountPct: "",
+          image: null,
+        });
+        setPreviewUrl(null);
+        setImageName(null);
+      }
+    }
+  }, [open, data, reset]);
 
   return (
     <>
@@ -208,9 +266,10 @@ export default function NewItemModal({
                 <Box my={2}>
                   <Box display="flex" alignItems="center" gap={2}>
                     <label htmlFor="upload-input">
-                      <Image
+                      <Box
+                        component="img"
                         src={previewUrl || "/images/default-img.png"}
-                        alt="Item"
+                        alt="item"
                         width={80}
                         height={80}
                         style={{
@@ -220,6 +279,7 @@ export default function NewItemModal({
                           cursor: "pointer",
                         }}
                       />
+                      
                     </label>
 
                     <input
@@ -231,13 +291,14 @@ export default function NewItemModal({
                         const file = e.target.files?.[0];
                         if (file) {
                           if (file.size > 5 * 1024 * 1024) {
-                            setError("image", {
-                              type: "manual",
-                              message: "File size should not exceed 5MB",
-                            });
+                            alert("File size should not exceed 5MB");
+                          
                             return;
-                          } else {
-                            clearErrors("image");
+                          }
+                         
+                          if (data?.itemID) {
+                            updateItemPicture(e.target);
+                            return 
                           }
 
                           setValue("image", file);
@@ -247,24 +308,26 @@ export default function NewItemModal({
                       }}
                     />
 
-                    <Box sx={{ flex: previewUrl ? 1 : "unset" }}>
-                      <Typography
-                        variant="body2"
-                        component="span"
-                        sx={{
-                          display: "block",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          border: "0.2px solid black",
-                        }}
-                      >
-                        {imageName || "No file chosen"}
-                      </Typography>
-                      <Typography variant="body2">
-                        PNG or JPG, max 5MB
-                      </Typography>
-                    </Box>
+                    {!previewUrl && (
+                      <Box sx={{ flex: previewUrl ? 1 : "unset" }}>
+                        <Typography
+                          variant="body2"
+                          component="span"
+                          sx={{
+                            display: "block",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            border: "0.2px solid black",
+                          }}
+                        >
+                          {imageName || "No file chosen"}
+                        </Typography>
+                        <Typography variant="body2">
+                          PNG or JPG, max 5MB
+                        </Typography>
+                      </Box>
+                    )}
                   </Box>
 
                   {errors.image && (
@@ -334,7 +397,7 @@ export default function NewItemModal({
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <Controller
-                  name="saleRate"
+                  name="salesRate"
                   control={control}
                   render={({ field }) => (
                     <Box sx={{ mb: 1 }}>
@@ -342,13 +405,15 @@ export default function NewItemModal({
                       <CustomTextField
                         {...field}
                         fullWidth
+                        type="number"
                         placeholder="0.00"
                         margin="none"
+                         onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
                         sx={{
                           "& .MuiInputBase-input": { textAlign: "right" },
                         }}
-                        error={!!errors.saleRate}
-                        helperText={errors.saleRate?.message}
+                        error={!!errors.salesRate}
+                        helperText={errors.salesRate?.message}
                       />
                     </Box>
                   )}
@@ -357,7 +422,7 @@ export default function NewItemModal({
 
               <Grid item xs={12} md={6}>
                 <Controller
-                  name="discount"
+                  name="discountPct"
                   control={control}
                   render={({ field }) => (
                     <Box sx={{ mb: 1 }}>
@@ -365,13 +430,15 @@ export default function NewItemModal({
                       <CustomTextField
                         {...field}
                         fullWidth
+                        type="number"
                         placeholder="0"
                         margin="none"
+                         onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
                         sx={{
                           "& .MuiInputBase-input": { textAlign: "right" },
                         }}
-                        error={!!errors.discount}
-                        helperText={errors.discount?.message}
+                        error={!!errors.discountPct}
+                        helperText={errors.discountPct?.message}
                         InputProps={{
                           endAdornment: (
                             <InputAdornment position="end">%</InputAdornment>

@@ -23,6 +23,8 @@ import * as yup from "yup";
 import { useDispatch } from "react-redux";
 import { setAuthData } from "@/store/slices/authSlice";
 import ErrorModal from "./modal/ErrorModal";
+import axios from "axios";
+import { useRouter } from "next/navigation";
 
 const schema = yup.object().shape({
   firstName: yup.string().required("Please enter your first name."),
@@ -68,6 +70,7 @@ export default function SignupForm() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
+  const router = useRouter
 
   const {
     handleSubmit,
@@ -109,47 +112,48 @@ export default function SignupForm() {
       reader.onload = () => resolve(reader.result);
       reader.onerror = (error) => reject(error);
     });
+
   console.log(process.env.NEXT_PUBLIC_API_URL, "NEXT_PUBLIC_API_URL");
   const onSubmit = async (data) => {
     try {
       setLoading(true);
 
-      let logoBase64 = "";
-      if (file) {
-        logoBase64 = await toBase64(file);
-      }
+      const formData = new FormData();
+      formData.append("FirstName", data.firstName);
+      formData.append("LastName", data.lastName);
+      formData.append("Email", data.email);
+      formData.append("Password", data.password);
+      formData.append("CompanyName", data.companyName);
+      formData.append("Address", data.address);
+      formData.append("City", data.city);
+      formData.append("ZipCode", data.zip);
+      formData.append("Industry", data.industry);
+      formData.append("CurrencySymbol", data.currency);
 
-      const payload = {
-        FirstName: data.firstName,
-        LastName: data.lastName,
-        Email: data.email,
-        Password: data.password,
-        CompanyName: data.companyName,
-        Address: data.address,
-        City: data.city,
-        ZipCode: data.zip,
-        Industry: data.industry,
-        CurrencySymbol: data.currency,
-        Logo: logoBase64,
-      };
+      if (file) {
+        formData.append("logo", file, file.name);
+      }
 
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/Auth/Signup`,
-        payload,
+        formData,
         {
           headers: {
-            "Content-Type": "application/json; charset=utf-8",
+            "Content-Type": "multipart/form-data",
           },
         }
       );
+
       console.log("Signup success:", response.data);
       dispatch(setAuthData(response.data));
+      setLoading(false);
+      router.push('/invoices')
     } catch (err) {
+      console.log(err,"err1211")
       const message =
         err.response?.data || "Something went wrong, please try again.";
       setMsg(message);
       setOpen(true);
-      console.error("Signup error:", err.response?.data || err.message);
     } finally {
       setLoading(false);
     }
@@ -167,14 +171,14 @@ export default function SignupForm() {
 
   return (
     <>
-          <ErrorModal open={open} onClose={() => setOpen(false)} message={msg} />
+      <ErrorModal open={open} onClose={() => setOpen(false)} message={msg} />
       <Box
         display="flex"
         flexDirection="column"
         alignItems="center"
         pt={3}
         pb={5}
-        sx={{ backgroundColor: "#e0f7fa", }}
+        sx={{ backgroundColor: "#e0f7fa" }}
       >
         <Typography variant="h5" fontWeight="bold" mb={1}>
           Create Your Account
@@ -582,7 +586,7 @@ export default function SignupForm() {
           // height: 20,
           display: "flex",
           // alignItems: "center",
-            // mt:2,
+          // mt:2,
           paddingTop: 2,
           paddingBottom: 1,
           justifyContent: "center",

@@ -23,7 +23,7 @@ export default function ErrorModal({ open, onClose, message }) {
           Error
         </Typography>
         <Typography variant="body1" mb={2}>
-          {message}
+          {message || "Something went wrong"}
         </Typography>
         <Button variant="contained" color="error" onClick={onClose}>
           Close

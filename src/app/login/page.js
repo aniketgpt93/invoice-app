@@ -25,6 +25,7 @@ import { setAuthData } from "@/store/slices/authSlice";
 import ErrorModal from "@/components/modal/ErrorModal";
 import PublicRoute from "@/components/PublicRoute";
 import Navbar from "@/components/Navbar";
+import axios from "axios";
 
 const schema = yup.object().shape({
   email: yup.string().email("Invalid email").required("Enter a valid email"),
@@ -59,7 +60,7 @@ export default function SigninPage() {
     try {
       setLoading(true);
       const response = await axios.post(
-        "{{baseUrl}}/Auth/Login",
+        `${process.env.NEXT_PUBLIC_API_URL}/Auth/Login`,
         {
           email: data.email,
           password: data.password,
@@ -79,10 +80,11 @@ export default function SigninPage() {
     } catch (error) {
       setLoading(false);
       const message =
-        err.response?.data || "Something went wrong, please try again.";
+        error.response?.data || error.message || "Something went wrong, please try again.";
+        console.log(message,"message")
       setError(message);
       setOpen(true);
-      console.error("Login failed:", error.response?.data || error.message);
+      // console.error("Login failed:", error.response?.data || error.message);
     }
   };
   const CustomTextField = styled(TextField)({
