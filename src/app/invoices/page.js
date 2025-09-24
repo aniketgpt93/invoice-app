@@ -39,46 +39,17 @@ import {
 import { getFromDate } from "@/utils";
 import LoaderComponent from "@/components/loader/LoaderComponent";
 import { clearAuthData } from "@/store/slices/authSlice";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 const filterOptions = ["Today", "Week", "Month", "Year", "Custom"];
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
 
-const columns = [
-  { field: "invoiceNo", headerName: "Invoice No", flex: 1 },
-  { field: "invoiceDate", headerName: "Date", flex: 1 },
-  { field: "customerName", headerName: "Customer", flex: 1 },
-  { field: "itemsCount", headerName: "Items", type: "number", flex: 1 }, // ❌ data me nahi hai
-  { field: "subTotal", headerName: "Sub Total", type: "number", flex: 1 },
-  { field: "taxPercentage", headerName: "Tax %", type: "number", flex: 1 },
-  { field: "taxAmount", headerName: "Tax Amt", type: "number", flex: 1 },
-  { field: "invoiceAmount", headerName: "Total", type: "number", flex: 1 },
-  {
-    field: "actions",
-    headerName: "Actions",
-    flex: 1,
-    renderCell: (params) => (
-      <>
-        <IconButton color="primary">
-          <EditIcon />
-        </IconButton>
-        <IconButton color="secondary">
-          <PrintIcon />
-        </IconButton>
-        <IconButton color="error" >
-          <DeleteIcon />
-        </IconButton>
-      </>
-    ),
-  },
-];
-
 const InvoicesDashboard = () => {
   const [filter, setFilter] = useState("Today");
   const [fromDate, setFromDate] = useState(getFromDate("Month").from);
   const [toDate, setToDate] = useState(getFromDate("Month").to);
-
+  const { company } = useSelector((state) => state.auth);
   const [listData, setListData] = useState([]);
   const [metricsData, setMetricsData] = useState({});
   const [trendData, setTrendData] = useState([]);
@@ -93,10 +64,44 @@ const InvoicesDashboard = () => {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  const handleErrorClose = () => {
+    const handleErrorClose = () => {
     setErrorOpen(false);
     setErrorMessage("");
   };
+  const columns = [
+    { field: "invoiceNo", headerName: "Invoice No", flex: 1 },
+    { field: "invoiceDate", headerName: "Date", flex: 1 },
+    { field: "customerName", headerName: "Customer", flex: 1 },
+    { field: "itemsCount", headerName: "Items", type: "number", flex: 1 },
+    { field: "subTotal", headerName: "Sub Total", type: "number", flex: 1 },
+    { field: "taxPercentage", headerName: "Tax %", type: "number", flex: 1 },
+    { field: "taxAmount", headerName: "Tax Amt", type: "number", flex: 1 },
+    { field: "invoiceAmount", headerName: "Total", type: "number", flex: 1 },
+    {
+      field: "actions",
+      headerName: "Actions",
+      flex: 1,
+      renderCell: (params) => (
+        <>
+          <IconButton color="primary">
+            <EditIcon
+              onClick={() =>
+                router.push(
+                  `/invoices/editor?invoiceNo=${params?.row?.invoiceID}&heading=Edit`
+                )
+              }
+            />
+          </IconButton>
+          <IconButton color="secondary">
+            <PrintIcon />
+          </IconButton>
+          <IconButton color="error">
+            <DeleteIcon onClick={()=>handleDelete(params?.row?.invoiceID)}/>
+          </IconButton>
+        </>
+      ),
+    },
+  ];
 
   const cardDetails = [
     {
@@ -106,7 +111,7 @@ const InvoicesDashboard = () => {
       content: null,
     },
     {
-      title: `$ ${totalAmount}`,
+      title: `${company?.currencySymbol || ""} ${totalAmount}`,
       subtitle: "Total invoices amount",
       variantH: "h4",
       content: null,
@@ -157,18 +162,22 @@ const InvoicesDashboard = () => {
       ),
     },
   ];
-const handleDelete = async (invoiceNo) => {
-    
-  const token = sessionStorage.getItem("token");
+  const handleDelete = async (invoiceNo) => {
+    const token = sessionStorage.getItem("token");
     if (!confirm("Are you sure?")) return;
-    await axios.delete(`${API_BASE}/Invoice/${invoiceNo}`, { headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },});
+    await axios.delete(
+      `${process.env.NEXT_PUBLIC_API_URL}/Invoice/${invoiceNo}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+    );
     fetchDashboardData(fromDate, toDate);
   };
   const handleRangeChange = (newRange) => {
-    setFilter (newRange);
+    setFilter(newRange);
     const { from, to } = getFromDate(newRange);
     setFromDate(from);
     setToDate(to);
@@ -197,6 +206,7 @@ const handleDelete = async (invoiceNo) => {
         taxPercentage: item.taxPercentage,
         taxAmount: item.taxAmount,
         invoiceAmount: item.invoiceAmount,
+        invoiceID: item.invoiceID,
       }));
       const sum = (listRes.data || []).reduce(
         (acc, item) => acc + (item.invoiceAmount || 0),
@@ -218,7 +228,7 @@ const handleDelete = async (invoiceNo) => {
     } catch (err) {
       if (err.response?.status === 401) {
         router.push("/login");
-        
+
         dispatch(clearAuthData());
       } else {
         const msg =
@@ -309,36 +319,58 @@ const handleDelete = async (invoiceNo) => {
             justifyContent: "space-between",
           }}
         >
-          {cardDetails.map((card, index) => (
-            <Grid
-              item
-              key={index}
-              size={{ xs: 12, sm: 6, md: 3, p: 8, m: 5 }}
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
+          {listData.length == 0 && (
+            <Grid size={{ xs: 12, sm: 12, md: 12, p: 12, m: 12}}>
+              {" "}
               <Card
                 sx={{
                   p: 2,
                   boxShadow: 3,
                   borderRadius: 2,
                   width: "100%",
-                  maxWidth: 280,
+                  maxWidth: 1300,
                   height: 180,
                 }}
               >
                 <CardContent>
-                  <Typography variant={card.variantH}>{card.title}</Typography>
-                  {card.subtitle && (
-                    <Typography variant="body2">{card.subtitle}</Typography>
-                  )}
-                  {card.content}
+                  <Typography variant={"h6"}>Not have any data</Typography>
                 </CardContent>
               </Card>
             </Grid>
-          ))}
+          )}
+          {listData.length > 0 &&
+            cardDetails.map((card, index) => (
+              <Grid
+                item
+                key={index}
+                size={{ xs: 12, sm: 6, md: 3, p: 8, m: 5 }}
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                }}
+              >
+                <Card
+                  sx={{
+                    p: 2,
+                    boxShadow: 3,
+                    borderRadius: 2,
+                    width: "100%",
+                    maxWidth: 280,
+                    height: 180,
+                  }}
+                >
+                  <CardContent>
+                    <Typography variant={card.variantH}>
+                      {card.title}
+                    </Typography>
+                    {card.subtitle && (
+                      <Typography variant="body2">{card.subtitle}</Typography>
+                    )}
+                    {card.content}
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
         </Grid>
 
         <Box

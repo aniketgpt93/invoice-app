@@ -1,8 +1,12 @@
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 
-export default function Header({ loading = false, onClickFunc }) {
-    const router = useRouter();
+export default function Header({
+  loading = false,
+  onClickFunc,
+  heading = "New",
+}) {
+  const router = useRouter();
   return (
     <Box
       display="flex"
@@ -15,7 +19,7 @@ export default function Header({ loading = false, onClickFunc }) {
         borderBottom: "1px solid #e0e0e0",
       }}
     >
-      <Typography variant="h6">New Invoice</Typography>
+      <Typography variant="h6">{heading ? heading : "New"} Invoice</Typography>
       <Box>
         <Button
           variant="outlined"

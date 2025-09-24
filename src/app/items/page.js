@@ -113,12 +113,12 @@ const handleRowUpdate = (payload) => {
     (i) =>
       i.itemName.toLowerCase().includes(search.toLowerCase()) ||
       i.description?.toLowerCase().includes(search.toLowerCase())
-  );
+  ) || [];
 
   const paginated = filtered.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
-  );
+  ) || [];
 
   const handleClose = () => {
     setOpen(false);

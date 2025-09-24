@@ -70,7 +70,7 @@ export default function SignupForm() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
-  const router = useRouter
+  const router = useRouter();
 
   const {
     handleSubmit,

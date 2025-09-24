@@ -5,26 +5,37 @@ import { useForm } from "react-hook-form";
 import { Box } from "@mui/material";
 import * as yup from "yup";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/invoiceEditor/Header";
 import EditorFooter from "@/components/invoiceEditor/EditorFooter";
 import EditorTable from "@/components/invoiceEditor/EditorTable";
 import InvoiceForm from "@/components/invoiceEditor/InvoiceForm";
 import LoaderComponent from "@/components/loader/LoaderComponent";
-import { fetchItems, saveInvoice } from "@/utils/axiosFile";
+import {
+  fetchItems,
+  getInvoiceById,
+  saveInvoice,
+  updateInvoice,
+} from "@/utils/axiosFile";
 import { generateRandomNumber } from "@/utils";
 import { yupResolver } from "@hookform/resolvers/yup";
 
 const schema = yup.object().shape({
-  invoiceNo: yup.number()
+  invoiceNo: yup
+    .number()
     .typeError("Invoice No must be a number")
     .required("Invoice No is required"),
 
   invoiceDate: yup.date().required("Invoice date is required"),
-  customerName: yup.string().required("Customer name is required"),
-  address: yup.string(),
-  city: yup.string(),
-  notes: yup.string(),
+
+  customerName: yup
+    .string()
+    .transform((value) => (value ? value.trim() : value))
+    .required("Customer name is required"),
+
+  address: yup.string().transform((value) => (value ? value.trim() : value)),
+  city: yup.string().transform((value) => (value ? value.trim() : value)),
+  notes: yup.string().transform((value) => (value ? value.trim() : value)),
 });
 
 export default function InvoiceEditorPage() {
@@ -33,13 +44,17 @@ export default function InvoiceEditorPage() {
   const [items, setItems] = useState([]);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const invoiceNo = searchParams.get("invoiceNo");
+  const heading = searchParams.get("heading");
+
   const {
     control,
     handleSubmit,
     setValue,
     formState: { errors },
   } = useForm({
-     resolver: yupResolver(schema),
+    resolver: yupResolver(schema),
     defaultValues: {
       invoiceNo: generateRandomNumber(),
       invoiceDate: new Date().toISOString().split("T")[0],
@@ -62,7 +77,11 @@ export default function InvoiceEditorPage() {
   ]);
 
   const [totalAmountState, setTotalAmountState] = useState(0);
-  const [taxState, setTaxState] = useState({ taxPct:0, calculatedTaxAmt :0, calculatedInvoiceAmt:0 });
+  const [taxState, setTaxState] = useState({
+    taxPct: 0,
+    calculatedTaxAmt: 0,
+    calculatedInvoiceAmt: 0,
+  });
 
   const calcTotals = (taxPct) => {
     const calculatedTaxAmt =
@@ -75,6 +94,14 @@ export default function InvoiceEditorPage() {
         : 0;
 
     return { taxPct, calculatedTaxAmt, calculatedInvoiceAmt };
+  };
+  const updateInvoieAmount = () => {
+    try {
+      const data = calcTotals(taxState?.taxPct);
+      setTaxState(data);
+    } catch (error) {
+      console.log(error);
+    }
   };
   const handleTaxPercentagehange = (e) => {
     let value = Number(e.target.value);
@@ -89,40 +116,46 @@ export default function InvoiceEditorPage() {
 
   const onSubmit = async (data) => {
     try {
-    
-   const payload = {
-      ...data,
-       invoiceDate: new Date(data.invoiceDate).toISOString().split("T")[0],
-      lines: rows.map(r => ({
-    ...r,
-    rate: Number(r.rate.toFixed(2)),
-    discountPct: Number(r.discountPct.toFixed(2))
-  }))
-, 
-      taxPercentage: taxState.taxPct || 0
-    };
+      setLoading(true);
+      let payload = {
+        ...data,
+        invoiceDate: new Date(data.invoiceDate).toISOString().split("T")[0],
+        lines: rows.map((r) => ({
+          ...r,
+          rate: Number(r.rate.toFixed(2)),
+          discountPct: Number(r.discountPct.toFixed(2)),
+        })),
+        taxPercentage: taxState.taxPct || 0,
+      };
+      if (heading) {
+        const result = await updateInvoice(payload);
+        alert("Invoice uploded!");
+      } else {
+        const result = await saveInvoice(payload);
+        alert("Invoice saved!");
+      }
 
-    const result = await saveInvoice(payload); 
-    console.log("Invoice saved successfully:", result);
-    alert("Invoice saved!");
-    
-    router.push('/invoices')
-
+      router.push("/invoices");
+      setLoading(false);
     } catch (error) {
-    console.error("Error saving invoice:", error.response?.data || error.message);
-    alert(error.response?.data || error.message || "Error saving invoice!");
-  }
+      console.error(
+        "Error saving invoice:",
+        error.response?.data || error.message
+      );
+      alert(error.response?.data || error.message || "Error saving invoice!");
+      setLoading(false);
+    }
   };
-  
 
   const fetchItemsFunc = async () => {
     try {
       setPageLoading(true);
 
-      const updatedItems =await fetchItems();
+      const updatedItems = await fetchItems();
 
       setItems(updatedItems);
       console.log(updatedItems, "updatedItems");
+      loadInvoice(invoiceNo);
       setPageLoading(false);
     } catch (error) {
       const msg =
@@ -131,9 +164,35 @@ export default function InvoiceEditorPage() {
         "Something went wrong!";
       alert(msg);
       console.error("Error fetching items:", error);
+      if (error.response && error.response.status === 401) {
+        console.error("Unauthorized! Token may be expired or invalid.");
+        sessionStorage.removeItem("token");
+        router.push("/");
+      } else {
+        console.error("Error:", error);
+      }
       setPageLoading(false);
     } finally {
       setPageLoading(false);
+    }
+  };
+  const loadInvoice = async (id) => {
+    if (invoiceNo) {
+      const data = await getInvoiceById(id);
+      // setValue("invoiceNo", data.invoiceNo);
+      setValue("invoiceDate", data.invoiceDate.split("T")[0]);
+      setValue("customerName", data.customerName);
+      setValue("address", data.address);
+      setValue("city", data.city);
+      setValue("notes", data.notes);
+      setRows(data.lines || []);
+      setTotalAmountState(data.subTotal);
+
+      setTaxState({
+        taxPct: data.taxPercentage,
+        calculatedTaxAmt: data.taxAmount,
+        calculatedInvoiceAmt: data.invoiceAmount,
+      });
     }
   };
 
@@ -141,12 +200,20 @@ export default function InvoiceEditorPage() {
     fetchItemsFunc();
   }, []);
 
+  useEffect(() => {
+    updateInvoieAmount();
+  }, [totalAmountState]);
+
   return (
     <ProtectedRoute>
-       {pageLoading && <LoaderComponent/>}
+      {pageLoading && <LoaderComponent />}
 
       <Box sx={{ backgroundColor: "#f5f5f5" }}>
-        <Header loading={loading} onClickFunc={handleSubmit(onSubmit)} />
+        <Header
+          loading={loading}
+          onClickFunc={handleSubmit(onSubmit)}
+          heading={heading}
+        />
 
         <InvoiceForm control={control} errors={errors} setValue={setValue} />
         <EditorTable

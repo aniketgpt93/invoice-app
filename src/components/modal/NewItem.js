@@ -17,10 +17,14 @@ import * as yup from "yup";
 import CloseIcon from "@mui/icons-material/Close";
 import ErrorModal from "./ErrorModal";
 import axios from "axios";
+import { checkDuplicateItemName } from "@/utils/axiosFile";
 
 const schema = yup.object().shape({
   itemName: yup.string().required("Item name is required"),
-  description: yup.string().required("Description is required").max(500, "Description cannot exceed 500 characters"),
+  description: yup
+    .string()
+    .required("Description is required")
+    .max(500, "Description cannot exceed 500 characters"),
   salesRate: yup
     .number()
     .transform((value, originalValue) =>
@@ -146,44 +150,63 @@ export default function NewItemModal({
       let payload = {};
       const token = sessionStorage.getItem("token");
 
-      if (data) {
-        url = `${process.env.NEXT_PUBLIC_API_URL}/Item`;
-        payload = {
-          updatedOn: null,
-          itemID: data.itemID,
-          itemName: formData.itemName,
-          description: formData.description,
-          salesRate: parseFloat(formData.salesRate),
-          discountPct: parseFloat(formData.discountPct),
-        };
+      let checkItemName = false;
 
-        const res = await axios.put(url, payload, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      if (data) {
+        if (
+          formData.itemName == data.itemName &&
+          formData.description == data.description &&
+          formData.salesRate == data.salesRate &&
+          formData.discountPct == data.discountPct
+        ) {
+          alert("any text field on changes required");
+        } else {
+          url = `${process.env.NEXT_PUBLIC_API_URL}/Item`;
+          payload = {
+            updatedOn: null,
+            itemID: data.itemID,
+            itemName: formData.itemName?.trim() || "",
+            description: formData.description?.trim() || "",
+            salesRate: parseFloat(formData.salesRate),
+            discountPct: parseFloat(formData.discountPct),
+          };
+
+          const res = await axios.put(url, payload, {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          rowFunc(payload);
+          handleClose();
+          alert("Item Saved sucessfully");
+        }
       } else {
         url = `${process.env.NEXT_PUBLIC_API_URL}/Item`;
         payload = {
-          itemName: formData.itemName,
-          description: formData.description,
+          itemName: formData.itemName?.trim() || "",
+          description: formData.description?.trim() || "",
           salesRate: parseFloat(formData.salesRate),
           discountPct: parseFloat(formData.discountPct),
         };
-        const res = await axios.post(url, payload, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        console.log("✅ API Success:", res.data);
-        payload = {...payload, primaryKeyID:res?.data?.primaryKeyID}
+        checkItemName = await checkDuplicateItemName(formData.itemName);
+        if (!checkItemName) {
+          const res = await axios.post(url, payload, {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          console.log("✅ API Success:", res.data);
+          payload = { ...payload, primaryKeyID: res?.data?.primaryKeyID };
+          rowFunc(payload);
+          handleClose();
+          alert("Item Saved sucessfully");
+        }
       }
-    rowFunc(payload);
-
-      handleClose();
-      alert("Item Saved sucessfully")
+      if (checkItemName) {
+        alert("Duplicate item name not accepted.");
+      }
     } catch (error) {
       console.error("API Error:", error);
       const msg =
@@ -219,7 +242,7 @@ export default function NewItemModal({
       }
     }
   }, [open, data, reset]);
-
+  
   return (
     <>
       <ErrorModal
@@ -279,7 +302,6 @@ export default function NewItemModal({
                           cursor: "pointer",
                         }}
                       />
-                      
                     </label>
 
                     <input
@@ -292,13 +314,13 @@ export default function NewItemModal({
                         if (file) {
                           if (file.size > 5 * 1024 * 1024) {
                             alert("File size should not exceed 5MB");
-                          
+
                             return;
                           }
-                         
+
                           if (data?.itemID) {
                             updateItemPicture(e.target);
-                            return 
+                            return;
                           }
 
                           setValue("image", file);
@@ -408,7 +430,11 @@ export default function NewItemModal({
                         type="number"
                         placeholder="0.00"
                         margin="none"
-                         onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value === "" ? "" : Number(e.target.value)
+                          )
+                        }
                         sx={{
                           "& .MuiInputBase-input": { textAlign: "right" },
                         }}
@@ -433,7 +459,11 @@ export default function NewItemModal({
                         type="number"
                         placeholder="0"
                         margin="none"
-                         onChange={(e) => field.onChange(e.target.value === "" ? "" : Number(e.target.value))}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value === "" ? "" : Number(e.target.value)
+                          )
+                        }
                         sx={{
                           "& .MuiInputBase-input": { textAlign: "right" },
                         }}
