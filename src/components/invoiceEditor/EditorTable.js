@@ -56,7 +56,6 @@ export default function EditorTable({
     ]);
   };
 
-
   const handleDelete = () => {
     if (selectedRow === null) return;
     const newRows = rows
@@ -105,6 +104,17 @@ export default function EditorTable({
     const discount = (total * row.discountPct) / 100;
     return isNaN(total - discount) ? 0 : total - discount;
   };
+  const handleCopy = () => {
+    if (selectedRow === null) return;
+
+    const rowToCopy = rows[selectedRow];
+    const newRow = {
+      ...rowToCopy,
+      rowNo: rows.length + 1,
+    };
+
+    setRows([...rows, newRow]);
+  };
 
   useEffect(() => {
     const total = rows.reduce((acc, row) => acc + calculateAmount(row), 0);
@@ -136,7 +146,12 @@ export default function EditorTable({
           >
             <Add /> Add Row
           </CustomButton>
-          <CustomButton variant="outlined" sx={{ mr: 1 }}>
+          <CustomButton
+            variant="outlined"
+            sx={{ mr: 1 }}
+            onClick={handleCopy}
+            disabled={selectedRow === null}
+          >
             <ContentCopy /> Copy
           </CustomButton>
 
@@ -189,7 +204,7 @@ export default function EditorTable({
                   sx={{
                     textAlign: "right",
                     fontWeight: "bold",
-                    fontSize: "0.875rem", 
+                    fontSize: "0.875rem",
                   }}
                 >
                   <CustomTextField
