@@ -212,7 +212,7 @@ const InvoicesDashboard = () => {
         (acc, item) => acc + (item.invoiceAmount || 0),
         0
       );
-      setTotalAmount(sum);
+      setTotalAmount(sum.toFixed(2));
       const lineData = (trendRes.data || []).map((item) => ({
         month: dayjs(item.monthStart).format("MMM YYYY"), // Oct 2024
         total: item.amountSum,

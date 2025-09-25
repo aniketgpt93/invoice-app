@@ -127,7 +127,11 @@ export default function InvoiceEditorPage() {
         })),
         taxPercentage: taxState.taxPct || 0,
       };
-      if (heading) {
+      if (heading && invoiceNo) {
+        payload = {
+        ...payload,
+        invoiceID: invoiceNo, 
+      }
         const result = await updateInvoice(payload);
         alert("Invoice uploded!");
       } else {
@@ -179,7 +183,7 @@ export default function InvoiceEditorPage() {
   const loadInvoice = async (id) => {
     if (invoiceNo) {
       const data = await getInvoiceById(id);
-      // setValue("invoiceNo", data.invoiceNo);
+      setValue("invoiceNo", data.invoiceNo);
       setValue("invoiceDate", data.invoiceDate.split("T")[0]);
       setValue("customerName", data.customerName);
       setValue("address", data.address);
